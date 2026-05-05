@@ -82,6 +82,31 @@
     });
   });
 
+  describe('compileBlocks prototype pollution (CVE-2021-4264)', function() {
+    var polluteKey = '__dustProtoPolluteTest__';
+    afterEach(function() {
+      try {
+        delete Object.prototype[polluteKey];
+      } catch (e) {}
+    });
+    it('does not emit inherited enumerable Object.prototype keys into compiled output', function(done) {
+      Object.defineProperty(Object.prototype, polluteKey, {
+        enumerable: true,
+        configurable: true,
+        value: ['PAYLOAD_SHOULD_NOT_APPEAR_IN_COMPILE']
+      });
+      var compiled = dust.compile('{a}', 'cve20214264CompileTest');
+      expect(compiled.indexOf('PAYLOAD_SHOULD_NOT_APPEAR_IN_COMPILE')).toBe(-1);
+      expect(compiled.indexOf(polluteKey)).toBe(-1);
+      var tmpl = dust.loadSource(compiled);
+      dust.render(tmpl, { a: '1' }, function(err, out) {
+        expect(err).toBe(null);
+        expect(out).toBe('1');
+        done();
+      });
+    });
+  });
+
   it("valid keys", function() {
     renderIt("Renders all valid keys", "{_foo}{$bar}{baz1}", {_foo: 1, $bar: 2, baz1: 3}, "123");
   });
